@@ -148,14 +148,51 @@ impl Synthetizer{
       }
    }
 
-   pub fn play(&mut self){
+   pub fn play(&self){
 
+      // pub fn copy_shuffle<T: Clone>(vec: &[T]) -> Vec<T> {
+      //    let mut vec = vec.to_vec();
+      //    shuffle(&mut vec);
+      //    vec
+   // }
+     
       let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     
       let oscillator = self.oscillators[0].clone();
+      let oscillator1 = self.oscillators[1].clone();
+
+
+      // let mut oscillator = WavetableOscillator::new( self.sample_rate, 128);
+      // oscillator.set_oscillator(440.0, |x|{return x.sin()}, 1.0, 440.0);
+      for i in 1..self.oscillators.len(){
+         eprintln!("Mixing oscillators");
+         oscillator.to_owned().mix( self.oscillators[i].clone() );
+      }
+
       let _result = stream_handle.play_raw(oscillator.convert_samples());
+      let _result2 = stream_handle.play_raw(oscillator1.convert_samples());
       std::thread::sleep(std::time::Duration::from_secs(5));
+
    }
+
+   // recorrer
+   // for val in vect.iter() {
+      ///// mas codifo 
+   // }
+ 
+// impl Series {
+//     pub fn iter(&self) -> std::iter::Copied<std::slice::Iter<Float>> {
+//         self.data.iter().copied()
+//     }
+// }
+
+   // fn todo( &self, valor_prestado: WavetableOscillator ){
+   //    for i in 1..self.oscillators.len(){
+   //       valor_prestado.to_owned().mix(self.oscillators[i].clone());
+   //    };
+
+   // }
+
    pub fn set_wavetable(&self){
       //Must be at least 1 oscillator
       let mut mIndex: usize = 0;
@@ -182,7 +219,7 @@ impl Iterator for Synthetizer {
     
    fn next(&mut self) -> Option<Self::Item> {
       // return Some(self.get_sample());
-      return Some(1.);
+      return Some(1.0);
    }  
 }
 
