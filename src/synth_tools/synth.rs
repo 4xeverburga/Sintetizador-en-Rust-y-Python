@@ -4,7 +4,7 @@ pub fn nothing_synth(){
 }
 
 use core::time::Duration;
-use rodio::{OutputStream, source::Source};
+use rodio::{OutputStream, source::{Source, Mix}};
 
 #[derive(Clone)]
 struct WavetableOscillator{
@@ -60,9 +60,10 @@ impl WavetableOscillator {
    fn get_sample(&mut self) -> f32 {
       let sample = self.lerp();
       self.index += self.index_increment;
-      if self.index > self.wave_table.len() as f32 {
-         self.index = 0.0;
-      }
+      self.index %= self.wave_table.len() as f32;
+      // if self.index > self.wave_table.len() as f32 {
+      //    self.index = 0.0;
+      // }
       return sample;
    }
 
@@ -105,6 +106,7 @@ impl Source for WavetableOscillator {
    }
 }
 
+#[derive(Clone)]
 pub struct Synthetizer {
    sample_rate: usize,
    wave_table: Vec<f32>,   // table for sound of the synth. Mix of the different oscillator voices
@@ -159,18 +161,28 @@ impl Synthetizer{
       let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     
       let oscillator = self.oscillators[0].clone();
-      let oscillator1 = self.oscillators[1].clone();
+      // algo.iter() -> &T
+      // algo.into_iter() -> T
+
 
 
       // let mut oscillator = WavetableOscillator::new( self.sample_rate, 128);
       // oscillator.set_oscillator(440.0, |x|{return x.sin()}, 1.0, 440.0);
-      for i in 1..self.oscillators.len(){
-         eprintln!("Mixing oscillators");
-         oscillator.to_owned().mix( self.oscillators[i].clone() );
-      }
+      let mix_source =  oscillator.to_owned().mix(self.oscillators[1].clone());
+      // for i in 1..self.oscillators.len(){
+      //    eprintln!("Mixing oscillators");
+      //    mix_source = oscillator.to_owned().mix(self.oscillators[i].clone());
+      // }
+      // mix<Item> -> Mix<self, item>
+      // pub struct Mix<I1, I2> where
+      //     I1: Source,
+      //     I1::Item: Sample,
+      //     I2: Source,
+      //     I2::Item: Sample,  { /* private fields */ }
 
-      let _result = stream_handle.play_raw(oscillator.convert_samples());
-      let _result2 = stream_handle.play_raw(oscillator1.convert_samples());
+      // let stream = self.clone().to_owned();
+      let _result = stream_handle.play_raw(mix_source.convert_samples());
+      // self.convert_samples
       std::thread::sleep(std::time::Duration::from_secs(5));
 
    }
@@ -195,22 +207,32 @@ impl Synthetizer{
 
    pub fn set_wavetable(&self){
       //Must be at least 1 oscillator
-      let mut mIndex: usize = 0;
-      let mut minor = self.oscillators[0].oscillator_frequency;
+      // let mut mIndex: usize = 0;
+      // let mut minor = self.oscillators[0].oscillator_frequency;
 
       //calculate optimal wavetable size algorithm 
       //still working
-      for i in 0..self.oscillators.len(){
-         if self.oscillators[i].oscillator_frequency < minor {
-            mIndex = i;
-            minor = self.oscillators[i].oscillator_frequency;
-         }
-      }
+      // for i in 0..self.oscillators.len(){
+      //    if self.oscillators[i].oscillator_frequency < minor {
+      //       mIndex = i;
+      //       minor = self.oscillators[i].oscillator_frequency;
+      //    }
+      // }
 
    }
 
-   pub fn get_sample(&mut self){
+   pub fn get_sample(&mut self) -> f32{
 
+      let mut sample = 0.0;
+      let counter = self.oscillators.len();
+      for i in 0..self.oscillators.len() {
+         sample += self.oscillators[i].get_sample();
+         eprint!("{}",self.oscillators[i].get_sample());
+      }
+      // for val in self.oscillators.iter() {
+      //    sample += val.to_owned().clone().get_sample();
+      // }
+      return sample;
    }
 }
 
@@ -219,7 +241,24 @@ impl Iterator for Synthetizer {
     
    fn next(&mut self) -> Option<Self::Item> {
       // return Some(self.get_sample());
-      return Some(1.0);
+      return Some(self.get_sample());
    }  
 }
 
+impl Source for Synthetizer {
+   fn channels(&self) -> u16 {
+       return 1;
+   }
+
+   fn sample_rate(&self) -> u32 {
+       return self.sample_rate as u32;
+   }   
+
+   fn current_frame_len(&self) -> Option<usize> {
+       return None;
+   }
+
+   fn total_duration(&self) -> Option<Duration> {
+       return None;
+   }
+}
