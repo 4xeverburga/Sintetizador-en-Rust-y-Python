@@ -151,7 +151,8 @@ impl Synthetizer{
    }
 
    pub fn play(&self){
-
+      use rodio::Sink;
+      use rodio::dynamic_mixer::mixer;
       // pub fn copy_shuffle<T: Clone>(vec: &[T]) -> Vec<T> {
       //    let mut vec = vec.to_vec();
       //    shuffle(&mut vec);
@@ -168,11 +169,17 @@ impl Synthetizer{
 
       // let mut oscillator = WavetableOscillator::new( self.sample_rate, 128);
       // oscillator.set_oscillator(440.0, |x|{return x.sin()}, 1.0, 440.0);
-      let mix_source =  oscillator.to_owned().mix(self.oscillators[1].clone());
-      // for i in 1..self.oscillators.len(){
-      //    eprintln!("Mixing oscillators");
-      //    mix_source = oscillator.to_owned().mix(self.oscillators[i].clone());
-      // }
+      // let mut mix_source =  oscillator.to_owned().mix(self.oscillators[0].clone());
+      // type S = u16;
+      let (mixer_controller, dynamic_mixer) 
+      = mixer(1, self.sample_rate as u32);
+      for i in 0..self.oscillators.len(){
+         eprintln!("Mixing oscillators");
+         // mix_source = oscillator.to_owned().mix(self.oscillators[i].clone());
+         mixer_controller.add(self.oscillators[i].clone());
+      }
+
+      
       // mix<Item> -> Mix<self, item>
       // pub struct Mix<I1, I2> where
       //     I1: Source,
@@ -181,29 +188,17 @@ impl Synthetizer{
       //     I2::Item: Sample,  { /* private fields */ }
 
       // let stream = self.clone().to_owned();
-      let _result = stream_handle.play_raw(mix_source.convert_samples());
+      let sink = Sink::try_new(&stream_handle).unwrap();
+      // let _result = stream_handle.play_raw(mix_source.convert_samples());
+      sink.set_volume(0.01);
+      sink.append(dynamic_mixer);
+
       // self.convert_samples
+
       std::thread::sleep(std::time::Duration::from_secs(5));
 
    }
 
-   // recorrer
-   // for val in vect.iter() {
-      ///// mas codifo 
-   // }
- 
-// impl Series {
-//     pub fn iter(&self) -> std::iter::Copied<std::slice::Iter<Float>> {
-//         self.data.iter().copied()
-//     }
-// }
-
-   // fn todo( &self, valor_prestado: WavetableOscillator ){
-   //    for i in 1..self.oscillators.len(){
-   //       valor_prestado.to_owned().mix(self.oscillators[i].clone());
-   //    };
-
-   // }
 
    pub fn set_wavetable(&self){
       //Must be at least 1 oscillator

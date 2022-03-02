@@ -11,9 +11,9 @@ fn main() {
 
     };
 
-    synth.add_oscillator(400.0, 440.0, |x| {return x.sin()}, 1.0);
-    synth.add_oscillator(400.0, 440.0, fn_oscill, 1.0);
-    synth.add_oscillator(700.0, 440.0, |x| {return x.sin()}, 1.0);
+    synth.add_oscillator(500.0, 440.0, |x| {return x.sin()}, 1.0);
+    synth.add_oscillator(200.0, 440.0, fn_oscill, 1.0);
+    synth.add_oscillator(100.0, 440.0, |x| {return x.sin()}, 1.0);
     let _result = synth.play();
 
     // use std::fs::File;
@@ -43,5 +43,5 @@ fn main() {
 
     // The sound plays in a separate audio thread,
     // so we need to keep the main thread alive while it's playing.
-std::thread::sleep(std::time::Duration::from_secs(5));
+    std::thread::sleep(std::time::Duration::from_secs(5));
 }
