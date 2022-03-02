@@ -3,6 +3,10 @@ pub fn nothing_synth(){
    print!("nothing -from synth");
 }
 
+use core::time::Duration;
+use rodio::{OutputStream, source::Source};
+
+#[derive(Clone)]
 struct WavetableOscillator{
    sample_rate: usize,
    original_frequency: f32,
@@ -75,7 +79,31 @@ impl WavetableOscillator {
    }
 }
    
+impl Iterator for WavetableOscillator {
+   type Item = f32;
+   
+   fn next(&mut self) -> Option<Self::Item> {
+         return Some(self.get_sample());
+   }
+}
 
+impl Source for WavetableOscillator {
+   fn channels(&self) -> u16 {
+       return 1;
+   }
+
+   fn sample_rate(&self) -> u32 {
+       return self.sample_rate as u32;
+   }   
+
+   fn current_frame_len(&self) -> Option<usize> {
+       return None;
+   }
+
+   fn total_duration(&self) -> Option<Duration> {
+       return None;
+   }
+}
 
 pub struct Synthetizer {
    sample_rate: usize,
@@ -120,6 +148,14 @@ impl Synthetizer{
       }
    }
 
+   pub fn play(&mut self){
+
+      let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    
+      let oscillator = self.oscillators[0].clone();
+      let _result = stream_handle.play_raw(oscillator.convert_samples());
+      std::thread::sleep(std::time::Duration::from_secs(5));
+   }
    pub fn set_wavetable(&self){
       //Must be at least 1 oscillator
       let mut mIndex: usize = 0;
@@ -133,7 +169,9 @@ impl Synthetizer{
             minor = self.oscillators[i].oscillator_frequency;
          }
       }
+
    }
+
    pub fn get_sample(&mut self){
 
    }
