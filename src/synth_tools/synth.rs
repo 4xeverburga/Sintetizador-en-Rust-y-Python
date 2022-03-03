@@ -1,8 +1,5 @@
 
-pub fn nothing_synth(){
-   print!("nothing -from synth");
-}
-
+use super::instructions;
 use core::time::Duration;
 use rodio::{OutputStream, source::{Source, Mix}};
 
@@ -13,10 +10,12 @@ struct WavetableOscillator{
    oscillator_frequency: f32, // original frequency multiplier 
    wave_table: Vec<f32>,   // table for sound of the oscillator
    wavetable_size: usize,
-   oscillator_fn: fn(x: f32) -> f32, // Function with period of 2PI. Output must be a normalized float value
-   volume: f32, // value ranging from 0 to 1 
+   pub oscillator_fn: fn(x: f32) -> f32, // Function with period of 2PI. Output must be a normalized float value
+   pub volume: f32, // value ranging from 0 to 1 
    index: f32, // index position in the wavetable
    index_increment: f32,   // used to fix the frequency at wich the sound will be played or saved
+   contador_callbacks: usize,
+
 }
 
 impl WavetableOscillator {
@@ -32,6 +31,7 @@ impl WavetableOscillator {
          volume: 1.0, // value ranging from 0 to 1 
          index: 0.0, // index position in the wavetable
          index_increment: 0.0, 
+         contador_callbacks: 0,
       }
    }
 
@@ -51,6 +51,7 @@ impl WavetableOscillator {
       self.index_increment = frequency * self.wavetable_size as f32 / self.sample_rate as f32;
       
       // Filling the wavetable
+      self.oscillator_fn = oscillator_fn;
       for n in 0..self.wavetable_size {
          let res = oscillator_fn( 2.0 * std::f32::consts::PI * n as f32 / self.wavetable_size as f32 );
          self.wave_table.push(res);
@@ -58,13 +59,15 @@ impl WavetableOscillator {
    }
 
    fn get_sample(&mut self) -> f32 {
+      self.contador_callbacks+= 1;
+      // print!(" -{}", self.contador_callbacks);
       let sample = self.lerp();
       self.index += self.index_increment;
       self.index %= self.wave_table.len() as f32;
       // if self.index > self.wave_table.len() as f32 {
       //    self.index = 0.0;
       // }
-      return sample;
+      return sample*self.volume;
    }
 
    fn lerp(&self) -> f32 {
@@ -127,7 +130,7 @@ impl Synthetizer{
          playback_table: vec!(),
          oscillators: vec!(),
          index: 0.0,
-         index_increment: 0.0
+         index_increment: 0.0,
       }
    }
 
@@ -161,11 +164,9 @@ impl Synthetizer{
      
       let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     
-      let oscillator = self.oscillators[0].clone();
+      // let oscillator = self.oscillators[0].clone();
       // algo.iter() -> &T
       // algo.into_iter() -> T
-
-
 
       // let mut oscillator = WavetableOscillator::new( self.sample_rate, 128);
       // oscillator.set_oscillator(440.0, |x|{return x.sin()}, 1.0, 440.0);
@@ -178,7 +179,6 @@ impl Synthetizer{
          // mix_source = oscillator.to_owned().mix(self.oscillators[i].clone());
          mixer_controller.add(self.oscillators[i].clone());
       }
-
       
       // mix<Item> -> Mix<self, item>
       // pub struct Mix<I1, I2> where
@@ -199,35 +199,64 @@ impl Synthetizer{
 
    }
 
+   pub fn play_self(&self){
+      use rodio::Sink;
+      let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+      let sink = Sink::try_new(&stream_handle).unwrap();
+      sink.set_volume(0.01);
+      sink.append(self.to_owned());
+      std::thread::sleep(std::time::Duration::from_secs(5));
+   }
 
-   pub fn set_wavetable(&self){
-      //Must be at least 1 oscillator
-      // let mut mIndex: usize = 0;
-      // let mut minor = self.oscillators[0].oscillator_frequency;
+   pub fn gen_playback_table(&mut self, voice_instructions: &mut instructions::VoiceInstruction ){
+      //Extensive allocation of memory containing the information of the sound being generated
+      //The table must be converted from the binary file created
+      // Asumes all the paths are already build
+      // let initial_fq = voice_instructions.path[0].0;
+      use std::fs::File;
+      use std::io::Write;
+      // use std::io::prelude::*;
+      // use std::io::BufWriter;
+      let mut playback_data = File::create("playback_table.syv").unwrap(); // synth voice
+      // let mut writer = BufWriter::new(&playback_data);
+      // let mut pos = 0;
+      // The samples will be taken at the same sample velocity of the synth
+      let mut function_x = 0.0;
+      let num_oscillators = self.oscillators.len() as f32;
 
-      //calculate optimal wavetable size algorithm 
-      //still working
-      // for i in 0..self.oscillators.len(){
-      //    if self.oscillators[i].oscillator_frequency < minor {
-      //       mIndex = i;
-      //       minor = self.oscillators[i].oscillator_frequency;
-      //    }
-      // }
 
+      for &(fq,vol) in &voice_instructions.path {
+
+         let mut sample = 0.0;
+         function_x += fq / self.sample_rate as f32;
+
+         for oscillator in &self.oscillators {
+            let fq_func = &oscillator.oscillator_fn;
+            sample += fq_func(function_x)*oscillator.volume;
+         }
+
+         let res = sample*vol/num_oscillators;
+         writeln!(playback_data, "{}", res);
+         // pos += writer.write(&[res]);
+         self.playback_table.push(res);
+
+      }
+
+      
    }
 
    pub fn get_sample(&mut self) -> f32{
 
       let mut sample = 0.0;
       let counter = self.oscillators.len();
-      for i in 0..self.oscillators.len() {
+      for i in 0..counter {
          sample += self.oscillators[i].get_sample();
-         eprint!("{}",self.oscillators[i].get_sample());
       }
+      // eprintln!("{}",sample);
       // for val in self.oscillators.iter() {
       //    sample += val.to_owned().clone().get_sample();
       // }
-      return sample;
+      return sample/counter as f32;
    }
 }
 

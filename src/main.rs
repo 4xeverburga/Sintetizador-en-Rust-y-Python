@@ -1,9 +1,12 @@
 mod synth_tools;
+use synth_tools::instructions;
 use synth_tools::synth::{Synthetizer};
 
 fn main() {
     let mut synth = Synthetizer::new( 44100, 128); 
     let fn_oscill = |x: f32| {
+
+        let x = x / 2.0 * std::f32::consts::PI;
         if x.sin().signum() as i8 == 1 {
             return x / std::f32::consts::PI;
         }
@@ -11,10 +14,14 @@ fn main() {
 
     };
 
-    synth.add_oscillator(500.0, 440.0, |x| {return x.sin()}, 1.0);
-    synth.add_oscillator(200.0, 440.0, fn_oscill, 1.0);
-    synth.add_oscillator(100.0, 440.0, |x| {return x.sin()}, 1.0);
-    let _result = synth.play();
+    synth.add_oscillator(200.0, 440.0, |x| {return x.sin()}, 1.0);
+    synth.add_oscillator(400.0, 440.0, fn_oscill, 0.05);
+    synth.add_oscillator(100.0, 440.0, |x| {return x.sin()}, 0.0);
+    
+    let controles = vec!( (2.0, instructions::VoiceFqPath::Function(|x| 500.0), instructions::VoiceVolPath::Function( |x| 0.1)) );
+    let mut voice_instructions = instructions::VoiceInstruction::new(controles);
+    voice_instructions.build_path(44100);
+    synth.gen_playback_table(&mut voice_instructions);
 
     // use std::fs::File;
     // use std::io::BufReader;
