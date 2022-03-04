@@ -199,13 +199,13 @@ impl Synthetizer{
 
    }
 
-   pub fn play_self(&self){
+   pub fn play_self(&self, seconds: f32){
       use rodio::Sink;
       let (_stream, stream_handle) = OutputStream::try_default().unwrap();
       let sink = Sink::try_new(&stream_handle).unwrap();
       sink.set_volume(0.1);
       sink.append(self.to_owned());
-      std::thread::sleep(std::time::Duration::from_secs(5));
+      std::thread::sleep(std::time::Duration::from_millis( ((seconds)*1000 as f32) as u64));
    }
 
    pub fn gen_playback_table(&mut self, voice_instructions: &mut instructions::VoiceInstruction ){
@@ -221,13 +221,13 @@ impl Synthetizer{
       let mut function_osc_x = vec!(0.0f32; num_oscillators);
 
       for &(fq,vol) in &voice_instructions.path {
-         let mut sample = 0.0;
          
+         let mut sample = 0.0;
          let mut i = 0;
          for oscillator in &self.oscillators {
             // Calculing the relative pitch change for every oscillator
-            // function_osc_x[i] += (fq*self.main_frequency) / (oscillator.oscillator_frequency*self.sample_rate as f32) ;
-            function_osc_x[i] += (fq*self.main_frequency) / (oscillator.oscillator_frequency*10000 as f32) ;
+            function_osc_x[i] += (std::f32::consts::TAU*fq*oscillator.oscillator_frequency) / (self.main_frequency*self.sample_rate as f32) ;
+            // function_osc_x[i] += (fq*self.main_frequency) / (oscillator.oscillator_frequency*10000 as f32) ;
 
             let fq_func = &oscillator.oscillator_fn;
             sample += fq_func(function_osc_x[i])*oscillator.volume;
