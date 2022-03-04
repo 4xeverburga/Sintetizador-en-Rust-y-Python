@@ -13,15 +13,17 @@ fn main() {
         return (x / std::f32::consts::PI) - 2.0f32 ;
 
     };
-
+    synth.set_main_fq(200.0);
     synth.add_oscillator(200.0, 440.0, |x| {return x.sin()}, 1.0);
-    synth.add_oscillator(400.0, 440.0, fn_oscill, 0.05);
-    synth.add_oscillator(100.0, 440.0, |x| {return x.sin()}, 0.0);
+    // synth.add_oscillator(400.0, 440.0, fn_oscill, 0.05);
+    // synth.add_oscillator(100.0, 440.0, |x| {return x.sin()}, 0.0);
     
-    let controles = vec!( (2.0, instructions::VoiceFqPath::Function(|x| 500.0), instructions::VoiceVolPath::Function( |x| 0.1)) );
+    let controles = vec!( (5.0, instructions::VoiceFqPath::Function(|_x:f32| _x.sin().abs()*300.0), instructions::VoiceVolPath::Function( |_x| 0.1)) );
     let mut voice_instructions = instructions::VoiceInstruction::new(controles);
     voice_instructions.build_path(44100);
     synth.gen_playback_table(&mut voice_instructions);
+    // synth.gen_playback_test();
+    synth.play_self();
 
     // use std::fs::File;
     // use std::io::BufReader;
@@ -50,5 +52,4 @@ fn main() {
 
     // The sound plays in a separate audio thread,
     // so we need to keep the main thread alive while it's playing.
-    std::thread::sleep(std::time::Duration::from_secs(5));
 }
