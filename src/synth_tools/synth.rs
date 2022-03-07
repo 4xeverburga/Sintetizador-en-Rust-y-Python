@@ -204,6 +204,7 @@ impl Synthetizer{
       let (_stream, stream_handle) = OutputStream::try_default().unwrap();
       let sink = Sink::try_new(&stream_handle).unwrap();
       sink.set_volume(0.1);
+      println!("Playing the playback_vector!");
       sink.append(self.to_owned());
       std::thread::sleep(std::time::Duration::from_millis( ((seconds)*1000 as f32) as u64));
    }

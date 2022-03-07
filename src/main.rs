@@ -1,5 +1,7 @@
 mod synth_tools;
 use synth_tools::instructions;
+use synth_tools::instructions::*;
+use synth_tools::instructions::notes;
 use synth_tools::synth::{Synthetizer};
 
 fn main() {
@@ -14,12 +16,42 @@ fn main() {
         return (x / std::f32::consts::PI) - 2.0f32 ;
 
     };
+    let foo = |x: f32| {
+        return note_fq("f", 4);
+    };
+
     synth.set_main_fq(400.0);
-    synth.add_oscillator(200.0, 440.0, |x| {return x.sin()}, 0.8);
+    synth.add_oscillator(300.0, 440.0, |x| {return x.sin()}, 0.8);
+    synth.add_oscillator(200.0, 440.0, |x| {return x.sin()}, 0.1);
     synth.add_oscillator(400.0, 440.0, fn_oscill, 0.5);
     // synth.add_oscillator(100.0, 440.0, |x| {return x.sin()}, 0.0);
     
-    let controles = vec!( (5.0, instructions::VoiceFqPath::Function(|_x:f32| 200.0+_x.sin().abs()*300.0), instructions::VoiceVolPath::Function( |_x| 0.08)) );
+    let semifusa = 0.2;
+    let mut controles  = vec!( (1.0, instructions::VoiceFqPath::Function(|_x:f32| 200.0+_x.sin().abs()*300.0), instructions::VoiceVolPath::Function( |_x| 0.08)) );
+    controles.push((semifusa, instructions::VoiceFqPath::Function(|_x:f32| 220.000), instructions::VoiceVolPath::Function( |_x| 0.08)));
+    controles.push((semifusa, instructions::VoiceFqPath::Function(|_x:f32| 246.942), instructions::VoiceVolPath::Function( |_x| 0.08)));
+    controles.push((semifusa, instructions::VoiceFqPath::Function(|_x:f32| 261.626), instructions::VoiceVolPath::Function( |_x| 0.08)));
+    controles.push((semifusa*2.0, instructions::VoiceFqPath::Function(|_x| notes::F1*8.0), instructions::VoiceVolPath::Function( atacks::simple )));
+    controles.push((semifusa*2.0, instructions::VoiceFqPath::Function(|_x| notes::F1*8.0), instructions::VoiceVolPath::Function( atacks::simple )));
+    controles.push((semifusa*2.0, instructions::VoiceFqPath::Function(|_x| notes::E1*8.0), instructions::VoiceVolPath::Function( atacks::simple )));
+
+    controles.push((semifusa*1.0, instructions::VoiceFqPath::Function(|_x| notes::A1*4.0), instructions::VoiceVolPath::Function( atacks::simple )));
+    controles.push((semifusa*2.0, instructions::VoiceFqPath::Function(|_x| notes::C1*8.0), instructions::VoiceVolPath::Function( atacks::simple )));
+    controles.push((semifusa*2.0, instructions::VoiceFqPath::Function(|_x| notes::D1*8.0), instructions::VoiceVolPath::Function( atacks::simple )));
+
+    controles.push((semifusa, instructions::VoiceFqPath::Function(|_x| notes::B1*4.0), instructions::VoiceVolPath::Function( atacks::simple )));
+    controles.push((semifusa, instructions::VoiceFqPath::Function(|_x| notes::A1*4.0), instructions::VoiceVolPath::Function( atacks::simple )));
+    controles.push((semifusa*4.0, instructions::VoiceFqPath::Function(|_x| notes::Ab1*4.0), instructions::VoiceVolPath::Function( atacks::simple )));
+    controles.push((semifusa*2.0, instructions::VoiceFqPath::Function(|_x| notes::Ab1*4.0), instructions::VoiceVolPath::Function( atacks::simple )));
+    controles.push((semifusa*2.0, instructions::VoiceFqPath::Function(|_x| notes::D1*8.0), instructions::VoiceVolPath::Function( atacks::simple )));
+
+
+
+
+
+
+
+    
     let mut voice_instructions = instructions::VoiceInstruction::new(controles);
     voice_instructions.build_path(44100);
     synth.gen_playback_table(&mut voice_instructions);
