@@ -1,8 +1,9 @@
 
 use super::instructions;
 use core::time::Duration;
-use rodio::{OutputStream, source::{Source, Mix}};
+use rodio::{OutputStream, source::{Source}};
 use std::fs::File;
+use std::sync::Arc;
 use std::io::Write;
 
 #[derive(Clone)]
@@ -12,7 +13,7 @@ struct WavetableOscillator{
    pub oscillator_frequency: f32, // original frequency multiplier 
    wave_table: Vec<f32>,   // table for sound of the oscillator
    wavetable_size: usize,
-   pub oscillator_fn: fn(x: f32) -> f32, // Function with period of 2PI. Output must be a normalized float value
+   pub oscillator_fn: Arc< dyn Fn(f32) -> f32 +Send+Sync+'static>, // Function with period of 2PI. Output must be a normalized float value
    pub volume: f32, // value ranging from 0 to 1 
    index: f32, // index position in the wavetable
    index_increment: f32,   // used to fix the frequency at wich the sound will be played or saved
@@ -29,7 +30,7 @@ impl WavetableOscillator {
          original_frequency : 1.0,
          wave_table: vec!(),   // table for sound of the oscillator
          wavetable_size: wavetable_size,
-         oscillator_fn: |x| {return x.sin()}, 
+         oscillator_fn: Arc::new(|x: f32| {return x.sin()}), 
          volume: 1.0, // value ranging from 0 to 1 
          index: 0.0, // index position in the wavetable
          index_increment: 0.0, 
@@ -43,7 +44,7 @@ impl WavetableOscillator {
       self.index = 0.0;
    }
 
-   fn set_oscillator(&mut self, set_frequency: f32, oscillator_fn: fn(x: f32) -> f32, volume: f32, original_fq: f32 ){
+   fn set_oscillator(&mut self, set_frequency: f32, oscillator_fn: impl Fn(f32) -> f32 +Send+Sync+'static, volume: f32, original_fq: f32 ){
 
       // Volume
       self.volume = volume;
@@ -53,22 +54,18 @@ impl WavetableOscillator {
       self.index_increment = set_frequency * self.wavetable_size as f32 / self.sample_rate as f32;
       
       // Filling the wavetable
-      self.oscillator_fn = oscillator_fn;
       for n in 0..self.wavetable_size {
          let res = oscillator_fn( 2.0 * std::f32::consts::PI * n as f32 / self.wavetable_size as f32 );
          self.wave_table.push(res);
       }
+      self.oscillator_fn = Arc::new(oscillator_fn);
    }
 
    fn get_sample(&mut self) -> f32 {
       self.contador_callbacks+= 1;
-      // print!(" -{}", self.contador_callbacks);
       let sample = self.lerp();
       self.index += self.index_increment;
       self.index %= self.wave_table.len() as f32;
-      // if self.index > self.wave_table.len() as f32 {
-      //    self.index = 0.0;
-      // }
       return sample*self.volume;
    }
 
@@ -143,7 +140,7 @@ impl Synthetizer{
       self.main_frequency = frequency;
    }
 
-   pub fn add_oscillator(&mut self, set_frequency: f32, original_fq: f32, oscillator_fn: fn(x: f32) -> f32, volume: f32){
+   pub fn add_oscillator(&mut self, set_frequency: f32, original_fq: f32, oscillator_fn: impl Fn(f32) -> f32 +Send+Sync+'static, volume: f32){
       let mut osc = WavetableOscillator::new(self.sample_rate, self.wavetable_size);
       osc.set_oscillator(set_frequency, oscillator_fn, volume, original_fq);
       self.oscillators.push(osc);
@@ -168,10 +165,6 @@ impl Synthetizer{
      
       let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     
-      // let mut oscillator = WavetableOscillator::new( self.sample_rate, 128);
-      // oscillator.set_oscillator(440.0, |x|{return x.sin()}, 1.0, 440.0);
-      // let mut mix_source =  oscillator.to_owned().mix(self.oscillators[0].clone());
-      // type S = u16;
       let (mixer_controller, dynamic_mixer) 
       = mixer(1, self.sample_rate as u32);
       for i in 0..self.oscillators.len(){
@@ -180,20 +173,9 @@ impl Synthetizer{
          mixer_controller.add(self.oscillators[i].clone());
       }
       
-      // mix<Item> -> Mix<self, item>
-      // pub struct Mix<I1, I2> where
-      //     I1: Source,
-      //     I1::Item: Sample,
-      //     I2: Source,
-      //     I2::Item: Sample,  { /* private fields */ }
-
-      // let stream = self.clone().to_owned();
       let sink = Sink::try_new(&stream_handle).unwrap();
-      // let _result = stream_handle.play_raw(mix_source.convert_samples());
       sink.set_volume(0.01);
       sink.append(dynamic_mixer);
-
-      // self.convert_samples
 
       std::thread::sleep(std::time::Duration::from_secs(5));
 
@@ -213,10 +195,7 @@ impl Synthetizer{
       //Extensive allocation of memory containing the information of the sound being generated
       //The table must be converted from the binary file created
       // Asumes all the paths are already build
-      // let initial_fq = voice_instructions.path[0].0;;
       let mut playback_data = File::create("playback_table.syv").unwrap(); // synth voice
-      // let mut writer = BufWriter::new(&playback_data);
-      // let mut pos = 0;
       // The samples will be taken at the same sample velocity of the synth
       let num_oscillators = self.oscillators.len();
       let mut function_osc_x = vec!(0.0f32; num_oscillators);
@@ -228,7 +207,6 @@ impl Synthetizer{
          for oscillator in &self.oscillators {
             // Calculing the relative pitch change for every oscillator
             function_osc_x[i] += (std::f32::consts::TAU*fq*oscillator.oscillator_frequency) / (self.main_frequency*self.sample_rate as f32) ;
-            // function_osc_x[i] += (fq*self.main_frequency) / (oscillator.oscillator_frequency*10000 as f32) ;
 
             let fq_func = &oscillator.oscillator_fn;
             sample += fq_func(function_osc_x[i])*oscillator.volume;
@@ -258,21 +236,8 @@ impl Synthetizer{
    }
    pub fn get_sample(&mut self) -> f32{
 
-      // let mut sample = 0.0;
-      // let counter = self.oscillators.len();
-      // for i in 0..counter {
-      //    sample += self.oscillators[i].get_sample();
-      // }
-      // for val in self.oscillators.iter() {
-         //    sample += val.to_owned().clone().get_sample();
-         // }
-      
-      //
       let index = self.index_playback % self.playback_table.len();
       self.index_playback += 1;
-      // eprintln!("Sonando: {} | Playback table: {}",sample/counter as f32, self.playback_table[index]);
-      // return sample/counter as f32;
-      // println!("{}", self.index_playback);
       return self.playback_table[index]
 
    }
@@ -282,7 +247,6 @@ impl Iterator for Synthetizer {
    type Item = f32;
     
    fn next(&mut self) -> Option<Self::Item> {
-      // return Some(self.get_sample());
       return Some(self.get_sample());
    }  
 }
@@ -301,7 +265,6 @@ impl Source for Synthetizer {
    }
 
    fn total_duration(&self) -> Option<Duration> {
-      //  return Some(std::time::Duration::from_secs(1));
       None
    }
 }

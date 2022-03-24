@@ -79,13 +79,10 @@ impl VoiceInstruction {
          let mut acumulator = 0.0;
          let fq_fn = &match *fq_mode {
             VoiceFqPath::Function(f) => f,
-            // VoiceFqPath::Constant(fq) =>,
-            // _ => |x| x ,
          };
          let vol_fn = &match *vol_mode {
             VoiceVolPath::Function(f) => f,
-            // VoiceVolPath::Constant => |x| x,
-            // _ => |x| x ,
+
          };
          while acumulator <= *seconds {
             self.path.push( (fq_fn(acumulator), vol_fn(acumulator)) );
