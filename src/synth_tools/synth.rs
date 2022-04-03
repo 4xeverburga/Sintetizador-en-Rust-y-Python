@@ -195,6 +195,7 @@ impl Synthetizer{
       //Extensive allocation of memory containing the information of the sound being generated
       //The table must be converted from the binary file created
       // Asumes all the paths are already build
+      // [=, &, ](parametros){fucnion}
       let mut playback_data = File::create("playback_table.syv").unwrap(); // synth voice
       // The samples will be taken at the same sample velocity of the synth
       let num_oscillators = self.oscillators.len();

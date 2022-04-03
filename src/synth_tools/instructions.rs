@@ -1,3 +1,4 @@
+use std::sync::Arc;
 pub mod notes{
 pub const C1: f32 = 32.70;
 pub const Db1: f32 = 34.65;
@@ -52,11 +53,11 @@ pub fn note_fq(note: &str, octave: u8) -> f32 {
 }
 
 pub enum VoiceFqPath {
-   Function (fn(t: f32) -> f32), // varying frequency. "t" starts at 0.0 
+   Function (Arc< dyn Fn(f32) -> f32 +Send+Sync+'static>), // varying frequency. "t" starts at 0.0 
    // Constant (f32) // the frequency of the voice will stay constant during the specified time
 }
 pub enum VoiceVolPath {
-   Function (fn(t: f32) -> f32), // varying volume. "t" starts at 0.0 
+   Function (Arc< dyn Fn(f32) -> f32 +Send+Sync+'static>), // varying volume. "t" starts at 0.0 
    // Constant (f32) // the volume of the voice will stay constant during the specified time
 }
 pub struct VoiceInstruction {
@@ -77,15 +78,18 @@ impl VoiceInstruction {
       for (seconds, fq_mode, vol_mode) in &self.instructions{
 
          let mut acumulator = 0.0;
-         let fq_fn = &match *fq_mode {
-            VoiceFqPath::Function(f) => f,
+         let fq_fn = match fq_mode {
+            // Destructure "f" from inside the enum 
+            VoiceFqPath::Function(f) => f, // f : f(f32) -> f32
          };
-         let vol_fn = &match *vol_mode {
+         let vol_fn = match vol_mode {
             VoiceVolPath::Function(f) => f,
 
          };
+         
          while acumulator <= *seconds {
-            self.path.push( (fq_fn(acumulator), vol_fn(acumulator)) );
+            self.path.push( ( fq_fn(acumulator), vol_fn(acumulator)) ) ;
+         
             acumulator += step;
          }
 

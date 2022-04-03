@@ -3,9 +3,12 @@ use synth_tools::instructions;
 use synth_tools::instructions::*;
 use synth_tools::instructions::notes;
 use synth_tools::synth::{Synthetizer};
+use std::sync::Arc;
+
 
 fn main() {
 
+    let mut semifusa = 0.2;
     let mut synth = Synthetizer::new( 44100, 128); 
     let fn_oscill_saw = |x: f32| {
 
@@ -32,24 +35,8 @@ fn main() {
 
     
     //Writing voice instructions for the oscillator
-    let semifusa = 0.2;
-    let mut controles  = vec!( (1.0, instructions::VoiceFqPath::Function(|_x:f32| 200.0+_x.sin().abs()*300.0), instructions::VoiceVolPath::Function( |_x| 0.08)) );
-    controles.push((semifusa, instructions::VoiceFqPath::Function(|_x:f32| 220.000), instructions::VoiceVolPath::Function( |_x| 0.08)));
-    controles.push((semifusa, instructions::VoiceFqPath::Function(|_x:f32| 246.942), instructions::VoiceVolPath::Function( |_x| 0.08)));
-    controles.push((semifusa, instructions::VoiceFqPath::Function(|_x:f32| 261.626), instructions::VoiceVolPath::Function( |_x| 0.08)));
-    controles.push((semifusa*2.0, instructions::VoiceFqPath::Function(|_x| notes::F1*8.0), instructions::VoiceVolPath::Function( atacks::simple )));
-    controles.push((semifusa*2.0, instructions::VoiceFqPath::Function(|_x| notes::F1*8.0), instructions::VoiceVolPath::Function( atacks::simple )));
-    controles.push((semifusa*2.0, instructions::VoiceFqPath::Function(|_x| notes::E1*8.0), instructions::VoiceVolPath::Function( atacks::simple )));
-
-    controles.push((semifusa*1.0, instructions::VoiceFqPath::Function(|_x| notes::A1*4.0), instructions::VoiceVolPath::Function( atacks::simple )));
-    controles.push((semifusa*2.0, instructions::VoiceFqPath::Function(|_x| notes::C1*8.0), instructions::VoiceVolPath::Function( atacks::simple )));
-    controles.push((semifusa*2.0, instructions::VoiceFqPath::Function(|_x| notes::D1*8.0), instructions::VoiceVolPath::Function( atacks::simple )));
-
-    controles.push((semifusa, instructions::VoiceFqPath::Function(|_x| notes::B1*4.0), instructions::VoiceVolPath::Function( atacks::simple )));
-    controles.push((semifusa, instructions::VoiceFqPath::Function(|_x| notes::A1*4.0), instructions::VoiceVolPath::Function( atacks::simple )));
-    controles.push((semifusa*4.0, instructions::VoiceFqPath::Function(|_x| notes::Ab1*4.0), instructions::VoiceVolPath::Function( atacks::simple )));
-    controles.push((semifusa*2.0, instructions::VoiceFqPath::Function(|_x| notes::Ab1*4.0), instructions::VoiceVolPath::Function( atacks::simple )));
-    controles.push((semifusa*2.0, instructions::VoiceFqPath::Function(|_x| notes::D1*8.0), instructions::VoiceVolPath::Function( atacks::simple )));
+    let mut controles  = vec!( (3.0, instructions::VoiceFqPath::Function( Arc::new( move |_x:f32| 200.0+_x.sin().abs()*300.0*semifusa ) ), instructions::VoiceVolPath::Function( Arc::new(|_x| 0.08)) ) );
+    
 
     //attaching instructions 
     let mut voice_instructions = instructions::VoiceInstruction::new(controles);
